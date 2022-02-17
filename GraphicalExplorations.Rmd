@@ -1,0 +1,87 @@
+---
+title: "Blossom Visualization"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(threejs)
+library(rgl)
+library(car)
+library(plotly)
+library(quantmod)
+```
+## Read Data
+```{r}
+cherry <- read.csv("data/washingtondc.csv") %>% 
+  bind_rows(read.csv("data/liestal.csv")) %>% 
+  bind_rows(read.csv("data/kyoto.csv"))
+
+cherryall <- read.csv("data/washingtondc.csv") %>% 
+  bind_rows(read.csv("data/liestal.csv")) %>% 
+  bind_rows(read.csv("data/kyoto.csv")) %>%
+  bind_rows(read.csv("data/japan.csv")) %>%
+  bind_rows(read.csv("data/south_korea.csv")) %>%
+  bind_rows(read.csv("data/meteoswiss.csv"))
+```
+
+## Multiple time series view
+
+Pivot to wide view
+```{r pivot}
+cherrywide <- pivot_wider(cherry, id_cols=NULL, names_from = location, values_from=bloom_doy)
+head(cherrywide)
+```
+
+```{r tsplot}
+tsp <- plot_ly(cherrywide,x=~year) %>%
+  add_lines(y=~washingtondc, name="Washington, DC") %>%
+  add_lines(y=~liestal, name="Liestal") %>%
+  add_lines(y=~kyoto, name= "Kyoto")
+tsp <- tsp %>% layout(
+    title = "Peak Bloom Day of Year",
+    xaxis = list(
+      rangeselector = list(
+        buttons = list(
+          list(
+            count = 10,
+            label = "10 year",
+            stepmode = "backward"),
+          list(
+            count = 25,
+            label = "25 yr",
+            stepmode = "backward"),
+          list(
+            count = 1,
+            label = "1 yr",
+            stepmode = "backward"),
+          list(
+            count = 1,
+            label = "YTD",
+            step = "year",
+            stepmode = "todate"),
+          list(step = "all"))),
+      rangeslider = list()),
+    yaxis = list(title = "Day of Year"))
+
+tsp
+```
+
+## Autoregressive Models
+
+```{r ar1}
+ggplot(cherrywide,aes(y=kyoto, x=lag(kyoto))) + geom_point()
+```
+       
+```{r acf}
+cherry %>% filter(location=="kyoto") %>% pull(bloom_doy) %>% acf %>% plot(na.action=na.omit)
+```
+
+```{r ar2 model}
+ar2.mod <- cherry %>% filter(location=="kyoto") %>% lm(bloom_doy ~ lag(bloom_doy,1) + lag(bloom_doy,2) + year, data=.)
+summary(ar2.mod)
+```
+
+```{r pacf}
+cherry %>% filter(location=="kyoto") %>% pull(bloom_doy) %>% pacf %>% plot(na.action=na.omit)
+```
