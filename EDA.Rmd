@@ -1,0 +1,89 @@
+---
+title: "Cherry First Look"
+output: html_notebook
+---
+
+
+```{r}
+library(tidyverse)
+```
+
+## Pull in all data.
+
+```{r readall}
+cherryall <- 
+  cherry <- read.csv("data/washingtondc.csv") %>% 
+  bind_rows(read.csv("data/liestal.csv")) %>% 
+  bind_rows(read.csv("data/japan.csv")) %>%
+  bind_rows(read.csv("data/meteoswiss.csv")) %>%
+  bind_rows(read.csv("data/south_korea.csv")) 
+
+country <- function(loc) {
+  sapply(strsplit(loc,"/"),
+         function (l) {ifelse (length(l)>1L, l[1],"*")}
+  )}
+city <- function(loc) {
+  sapply(strsplit(loc,"/"),
+         function (l) {ifelse (length(l)>1L, l[2],l[1])}
+  )}
+cherryall <- add_column(cherryall,
+                        country=country(cherryall$location),
+                        city=city(cherryall$location))
+
+
+summary(cherryall)
+
+```
+
+```{r summary}
+cherryall %>% group_by(location) %>% summarize_all(max)
+```
+
+```{r alt effect}
+cherryall %>% ggplot(aes(alt,bloom_doy)) + geom_point(aes(color=country))
+```
+
+```{r lat effect}
+cherryall %>% ggplot(aes(lat,bloom_doy)) + geom_point(aes(color=country))
+```
+
+## Visdat package
+
+```{r visdat}
+library(visdat)
+help(package="visdat")
+```
+
+```{r glimpse}
+glimpse(cherryall)
+```
+```{r vis_dat}
+vis_dat(cherryall)
+```
+
+```{r vis_cor}
+cherryall %>% select(where(is.numeric)) %>% vis_cor()
+```
+
+```{r long-country}
+ggplot(cherryall,aes(country,long)) + geom_boxplot()
+```
+
+```{r long-lat}
+ggplot(cherryall,aes(long,lat)) + geom_point(aes(color=country))
+```
+
+
+### RGL package
+
+```{r load rgl}
+library(rgl)
+```
+
+```{r plot}
+rgl.open() # Open a new RGL device
+rgl.points(cherryall$long, cherryall$lat, cherryall$alt, color ="lightgray") # Scatter plot
+rgl.lines(c(min(cherryall$long), max(cherryall$long)), c(0, 0), c(0, 0), color = "black")
+rgl.lines(c(0, 0), c(min(cherryall$lat),max(cherryall$lat)), c(0, 0), color = "red")
+rgl.lines(c(0, 0), c(0, 0), c(min(cherryall$alt),max(cherryall$alt)), color = "green")
+```
